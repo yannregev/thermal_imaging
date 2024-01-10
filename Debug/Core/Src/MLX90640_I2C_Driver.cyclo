@@ -1,5 +1,4 @@
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_ll_i2c.h:1552:26:LL_I2C_IsActiveFlag_TXE	2
-../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_ll_i2c.h:1565:26:LL_I2C_IsActiveFlag_TXIS	2
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_ll_i2c.h:1578:26:LL_I2C_IsActiveFlag_RXNE	2
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_ll_i2c.h:1617:26:LL_I2C_IsActiveFlag_STOP	2
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_ll_i2c.h:1630:26:LL_I2C_IsActiveFlag_TC	2
@@ -12,7 +11,7 @@
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_ll_i2c.h:2237:22:LL_I2C_TransmitData8	1
 ../Core/Src/MLX90640_I2C_Driver.c:15:6:MLX90640_I2CInit	1
 ../Core/Src/MLX90640_I2C_Driver.c:20:10:MLX90640_I2CReadWord	8
-../Core/Src/MLX90640_I2C_Driver.c:83:5:MLX90640_I2CGeneralReset	1
-../Core/Src/MLX90640_I2C_Driver.c:88:5:MLX90640_I2CRead	2
-../Core/Src/MLX90640_I2C_Driver.c:104:5:MLX90640_I2CWrite	8
-../Core/Src/MLX90640_I2C_Driver.c:170:6:MLX90640_I2CFreqSet	1
+../Core/Src/MLX90640_I2C_Driver.c:80:5:MLX90640_I2CGeneralReset	1
+../Core/Src/MLX90640_I2C_Driver.c:85:5:MLX90640_I2CRead	2
+../Core/Src/MLX90640_I2C_Driver.c:101:5:MLX90640_I2CWrite	8
+../Core/Src/MLX90640_I2C_Driver.c:165:6:MLX90640_I2CFreqSet	1
