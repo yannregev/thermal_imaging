@@ -30,8 +30,7 @@ uint16_t MLX90640_I2CReadWord(uint8_t slaveAddress, uint16_t start_address)
 	reg_l = (uint8_t) (start_address & 0x00FF); 	    //Address LSB
 
 
-	while (LL_I2C_IsActiveFlag_BUSY(I2C1)) {
-	}
+	while (LL_I2C_IsActiveFlag_BUSY(I2C1)) {};
 
     LL_I2C_HandleTransfer(I2C1, slaveAddress, LL_I2C_ADDRSLAVE_7BIT, 2,
     		LL_I2C_MODE_SOFTEND, LL_I2C_GENERATE_START_WRITE);
@@ -115,11 +114,11 @@ int MLX90640_I2CWrite(uint8_t slaveAddr,uint16_t writeAddress, uint16_t data)
 	dat_m = (uint8_t) ((data & 0xFF00) >> 8);	// Data MSB
 	dat_l = (uint8_t) (data & 0x00FF);			//Data LSB
 
-	while (LL_I2C_IsActiveFlag_BUSY(I2C1)) {
-	}
+	while (LL_I2C_IsActiveFlag_BUSY(I2C1)) {};
 
-    LL_I2C_HandleTransfer(I2C1, slaveAddr, LL_I2C_ADDRSLAVE_7BIT, 2,
-    		I2C_CR2_RELOAD, LL_I2C_GENERATE_START_WRITE);
+
+    LL_I2C_HandleTransfer(I2C1, slaveAddr, LL_I2C_ADDRSLAVE_7BIT, 4,
+    		LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE);
 
 
     while (!LL_I2C_IsActiveFlag_TXE(I2C1)){};
@@ -129,11 +128,6 @@ int MLX90640_I2CWrite(uint8_t slaveAddr,uint16_t writeAddress, uint16_t data)
     while (!LL_I2C_IsActiveFlag_TXE(I2C1)) {};
 
     LL_I2C_TransmitData8(I2C1, reg_l);
-
-    while (!LL_I2C_IsActiveFlag_TCR(I2C1)) {};
-
-    LL_I2C_HandleTransfer(I2C1, slaveAddr, LL_I2C_ADDRSLAVE_7BIT, 2,
-                              I2C_CR2_AUTOEND ,LL_I2C_GENERATE_NOSTARTSTOP);
 
     while (!LL_I2C_IsActiveFlag_TXE(I2C1)) {};
 
