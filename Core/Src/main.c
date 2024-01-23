@@ -35,6 +35,8 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define TA_SHIFT 8 //Default shift for MLX90640 in open air
+
+#define NORMALIZE_PIXEL(value, min_range, max_range, new_min, new_max) (((value) - min_range)/(max_range - min_range) * (new_max - new_min) + new_min)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -72,6 +74,8 @@ PUTCHAR_PROTOTYPE
 	HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
 	return ch;
 }
+
+static void MX_I2C1_fast_Init(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -88,6 +92,10 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 
+	const float MIN_RANGE = 30.0f;
+	const float MAX_RANGE = 45.0f;
+	const uint8_t NEW_MIN = 1;
+	const uint8_t NEW_MAX = 255;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -112,23 +120,28 @@ int main(void)
   MX_USART2_UART_Init();
   MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
+
   HAL_Delay(1000);
-  MLX90640_I2CInit(/*hi2c1*/);
+  //MLX90640_I2CInit(hi2c1);
   int status;
   uint16_t eeMLX90640[832];
 
   status = MLX90640_DumpEE(mlx_addr, eeMLX90640);
   if (status != 0)
 	  printf("Failed to load system parameters of MLX90640\n");
-
   status = MLX90640_ExtractParameters(eeMLX90640, &mlx90640);
   if (status != 0)
 	  printf("Number of pixel errors: %d\n", status);
-  MLX90640_SetRefreshRate(mlx_addr, 0x05);
-
+  status = MLX90640_SetRefreshRate(mlx_addr, 0x07);
+  if (status != 0)
+	  printf("Set refresh rate error: %d\n", status);
   status = MLX90640_GetCurMode(mlx_addr);
   	  printf("Current mode: %d\n", status);
-
+  //MLX90640_I2CFreqSet(0);
+  uint8_t data[768];
+  LL_I2C_DeInit(I2C1);
+  MX_I2C1_fast_Init();
+  //MLX90640_I2CInit(hi2c1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -136,7 +149,7 @@ int main(void)
   while (1)
   {
 
-	  if( __HAL_TIM_GET_COUNTER(&htim7) >= 2000)	// Calculate Based on refresh
+	  if( __HAL_TIM_GET_COUNTER(&htim7) >= 313)	// Calculate Based on refresh
 	  {
 		  __HAL_TIM_SET_COUNTER(&htim7, 0);
 		  for (int x = 0 ; x < 2 ; x++) //Read both subpages
@@ -157,17 +170,28 @@ int main(void)
 		    MLX90640_BadPixelsCorrection(mlx90640.brokenPixels, mlx90640To, mode, &mlx90640);
 		  }
 
+		  for (int i = 0; i < 768; i++)
+		  {
+			  //data[i] = (int)(mlx90640To[i] * 10);
+			  if (mlx90640To[i] <= MIN_RANGE)
+			  {
+				  data[i] = 1;
+			  }
+			  else if(mlx90640To[i] >= MAX_RANGE)
+			  {
+				  data[i] = 255;
+			  }
+			  else
+			  {
+				  data[i] = (uint8_t)NORMALIZE_PIXEL(mlx90640To[i], MIN_RANGE, MAX_RANGE, NEW_MIN, NEW_MAX);
+			  }
+		  }
 	  }
 
 	  if (send_usart == 1)
 	  {
+		  HAL_UART_Transmit(&huart2, (uint8_t*)&data, 768, 1000);
 		  send_usart = 0;
-		  for (int i = 0; i < 768; i++)
-		  {
-			  int64_t data = (int)(mlx90640To[i] * 100);
-			  HAL_UART_Transmit(&huart2, (uint8_t*)&data, 8, 100);
-		  }
-
 	  }
 
 
@@ -319,7 +343,7 @@ static void MX_TIM7_Init(void)
   htim7.Instance = TIM7;
   htim7.Init.Prescaler = 17000-1;
   htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim7.Init.Period = 19999;
+  htim7.Init.Period = 39999;
   htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
   {
@@ -353,7 +377,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 500000;
+  huart2.Init.BaudRate = 115200;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
@@ -434,6 +458,87 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		send_usart = 1;
 		HAL_UART_Receive_IT(&huart2, &usart1Buf, 1);
 	}
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_fast_Init(void)
+{
+
+	  /* USER CODE BEGIN I2C1_Init 0 */
+
+	  /* USER CODE END I2C1_Init 0 */
+
+	  LL_I2C_InitTypeDef I2C_InitStruct = {0};
+
+	  LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
+	  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
+
+	  /** Initializes the peripherals clocks
+	  */
+	  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_I2C1;
+	  PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_PCLK1;
+	  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+	  {
+	    Error_Handler();
+	  }
+
+	  LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOB);
+	  /**I2C1 GPIO Configuration
+	  PB8-BOOT0   ------> I2C1_SCL
+	  PB9   ------> I2C1_SDA
+	  */
+	  GPIO_InitStruct.Pin = LL_GPIO_PIN_8;
+	  GPIO_InitStruct.Mode = LL_GPIO_MODE_ALTERNATE;
+	  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+	  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_OPENDRAIN;
+	  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+	  GPIO_InitStruct.Alternate = LL_GPIO_AF_4;
+	  LL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+	  GPIO_InitStruct.Pin = LL_GPIO_PIN_9;
+	  GPIO_InitStruct.Mode = LL_GPIO_MODE_ALTERNATE;
+	  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+	  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_OPENDRAIN;
+	  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+	  GPIO_InitStruct.Alternate = LL_GPIO_AF_4;
+	  LL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+	  /* Peripheral clock enable */
+	  LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_I2C1);
+
+	  /* USER CODE BEGIN I2C1_Init 1 */
+
+	  /* USER CODE END I2C1_Init 1 */
+
+	  /** I2C Initialization
+	  */
+	  I2C_InitStruct.PeripheralMode = LL_I2C_MODE_I2C;
+	  I2C_InitStruct.Timing = 0x00802172;
+	  I2C_InitStruct.AnalogFilter = LL_I2C_ANALOGFILTER_ENABLE;
+	  I2C_InitStruct.DigitalFilter = 0;
+	  I2C_InitStruct.OwnAddress1 = 0;
+	  I2C_InitStruct.TypeAcknowledge = LL_I2C_ACK;
+	  I2C_InitStruct.OwnAddrSize = LL_I2C_OWNADDRESS1_7BIT;
+	  LL_I2C_Init(I2C1, &I2C_InitStruct);
+	  LL_I2C_EnableAutoEndMode(I2C1);
+	  LL_I2C_SetOwnAddress2(I2C1, 0, LL_I2C_OWNADDRESS2_NOMASK);
+	  LL_I2C_DisableOwnAddress2(I2C1);
+	  LL_I2C_DisableGeneralCall(I2C1);
+	  LL_I2C_EnableClockStretching(I2C1);
+
+	  /** I2C Fast mode Plus enable
+	  */
+	  LL_SYSCFG_EnableFastModePlus(LL_SYSCFG_I2C_FASTMODEPLUS_I2C1);
+	  /* USER CODE BEGIN I2C1_Init 2 */
+
+	  /* USER CODE END I2C1_Init 2 */
+
+
+
 }
 /* USER CODE END 4 */
 
